@@ -65,7 +65,7 @@ private:
     float pcutoff;
     float degrid;
     bool interlaced;
-    VSNodeRef *node;
+    VSNode *node;
 
     std::unique_ptr<uint8_t[]> coverbuf; /*  block buffer covering the frame without remainders (with sufficient width and heigth) */
     int coverwidth;
@@ -94,14 +94,14 @@ private:
 public:
     const VSVideoInfo *GetOutputVI() const { return &outvi; };
 
-    FFT3DFilterTransform(bool pshow, VSNodeRef *node, int plane, int wintype, int bw, int bh, int ow, int oh, int px, int py, float pcutoff, float degrid, bool interlaced, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi);
-    const VSFrameRef *GetGridSample(VSCore *core, const VSAPI *vsapi);
-    VSFrameRef *GetFrame(const VSFrameRef *src, VSCore *core, const VSAPI *vsapi);
+    FFT3DFilterTransform(bool pshow, VSNode *node, int plane, int wintype, int bw, int bh, int ow, int oh, int px, int py, float pcutoff, float degrid, bool interlaced, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi);
+    const VSFrame *GetGridSample(VSCore *core, const VSAPI *vsapi);
+    VSFrame *GetFrame(const VSFrame *src, VSCore *core, const VSAPI *vsapi);
     void GetNoisePattern(int n, int &px, int &py, float *pattern2d, float &psigma, const fftwf_complex *gridsample, VSCore *core, const VSAPI *vsapi);
-    VSFrameRef *GetPShowInfo(const VSFrameRef *src, VSCore *core, const VSAPI *vsapi);
+    VSFrame *GetPShowInfo(const VSFrame *src, VSCore *core, const VSAPI *vsapi);
 
-    static const VSFrameRef *VS_CC GetFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
-    static const VSFrameRef *VS_CC GetPShowFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
+    static const VSFrame *VS_CC GetFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
+    static const VSFrame *VS_CC GetPShowFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
     static void VS_CC Free(void *instance_data, VSCore *core, const VSAPI *vsapi);
 };
 
@@ -113,7 +113,7 @@ private:
     int ow;
     int oh;
     bool interlaced;
-    VSNodeRef *node;
+    VSNode *node;
 
     std::unique_ptr<uint8_t[]> coverbuf; /*  block buffer covering the frame without remainders (with sufficient width and heigth) */
     int coverwidth;
@@ -141,13 +141,13 @@ private:
     std::unique_ptr<float[], decltype(&fftw_free)> in;
     std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)> planinv;
 
-    VSFrameRef *GetFrame(const VSFrameRef *src, VSCore *core, const VSAPI *vsapi);
+    VSFrame *GetFrame(const VSFrame *src, VSCore *core, const VSAPI *vsapi);
 public:
     const VSVideoInfo *GetOutputVI() const { return &dstvi; };
 
-    FFT3DFilterInvTransform(VSNodeRef *node, const VSVideoInfo *vi, int plane, int wintype, int bw, int bh, int ow, int oh, bool interlaced, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi);
+    FFT3DFilterInvTransform(VSNode *node, const VSVideoInfo *vi, int plane, int wintype, int bw, int bh, int ow, int oh, bool interlaced, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi);
 
-    static const VSFrameRef *VS_CC GetFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
+    static const VSFrame *VS_CC GetFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
     static void VS_CC Free(void *instance_data, VSCore *core, const VSAPI *vsapi);
 };
 
@@ -159,15 +159,15 @@ private:
     int bh;
     int ow;
     int oh;
-    VSNodeRef *node;
+    VSNode *node;
 
     const VSVideoInfo *vi;
 
 public:
-    FFT3DFilterPShow(VSNodeRef *node, int plane, int bw, int bh, int ow, int oh, bool interlaced, VSCore *core, const VSAPI *vsapi);
-    VSFrameRef *GetFrame(const VSFrameRef *src, VSCore *core, const VSAPI *vsapi);
+    FFT3DFilterPShow(VSNode *node, int plane, int bw, int bh, int ow, int oh, bool interlaced, VSCore *core, const VSAPI *vsapi);
+    VSFrame *GetFrame(const VSFrame *src, VSCore *core, const VSAPI *vsapi);
 
-    static const VSFrameRef *VS_CC GetFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
+    static const VSFrame *VS_CC GetFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
     static void VS_CC Free(void *instance_data, VSCore *core, const VSAPI *vsapi);
 };
 
@@ -202,7 +202,7 @@ private:
 
     /* additional parameterss */
 
-    const VSFrameRef *gridsample;
+    const VSFrame *gridsample;
     int nox, noy;
     int outwidth;
     ptrdiff_t outpitch;
@@ -230,13 +230,13 @@ private:
     std::unique_ptr<float[], decltype(&fftw_free)> pattern3d;
 
     const VSVideoInfo *vi;
-    VSNodeRef *node;
+    VSNode *node;
 
     template < int btcur >
-    void Wiener3D(int n, VSNodeRef *node, VSFrameRef *dst, VSFrameContext *frame_ctx, const VSAPI *vsapi);
+    void Wiener3D(int n, VSNode *node, VSFrame *dst, VSFrameContext *frame_ctx, const VSAPI *vsapi);
 
 public:
-    const VSFrameRef *ApplyFilter(int n, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
+    const VSFrame *ApplyFilter(int n, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
 
     /* Constructor */
     FFT3DFilter
@@ -247,9 +247,9 @@ public:
         int _pframe, int _px, int _py, bool _pshow, float _pcutoff, float _pfactor,
         float _sigma2, float _sigma3, float _sigma4, float _degrid,
         float _dehalo, float _hr, float _ht, int _ncpu,
-        VSNodeRef *node, VSCore *core, const VSAPI *vsapi
+        VSNode *node, VSCore *core, const VSAPI *vsapi
     );
 
-    static const VSFrameRef *VS_CC GetFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
+    static const VSFrame *VS_CC GetFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
     static void VS_CC Free(void *instance_data, VSCore *core, const VSAPI *vsapi);
 };

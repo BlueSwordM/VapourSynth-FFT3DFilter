@@ -137,7 +137,7 @@ static void GetPatternWindow(int bw, int bh, int outwidth, int outpitchelems, fl
 
 //
 template<typename T>
-static void FramePlaneToCoverbuf(int plane, const VSFrameRef *src, T *__restrict coverbuf, int coverwidth, int coverheight, ptrdiff_t coverpitch, int mirw, int mirh, bool interlaced, const VSAPI *vsapi) {
+static void FramePlaneToCoverbuf(int plane, const VSFrame *src, T *__restrict coverbuf, int coverwidth, int coverheight, ptrdiff_t coverpitch, int mirw, int mirh, bool interlaced, const VSAPI *vsapi) {
     const T *__restrict srcp = reinterpret_cast<const T *>(vsapi->getReadPtr(src, plane));
     int            src_height = vsapi->getFrameHeight(src, plane);
     int            src_width = vsapi->getFrameWidth(src, plane);
@@ -207,7 +207,7 @@ static void FramePlaneToCoverbuf(int plane, const VSFrameRef *src, T *__restrict
 //-----------------------------------------------------------------------
 //
 template<typename T>
-static void CoverbufToFramePlane(const T *__restrict coverbuf, int coverwidth, int coverheight, ptrdiff_t coverpitch, VSFrameRef *dst, int mirw, int mirh, bool interlaced, const VSAPI *vsapi) {
+static void CoverbufToFramePlane(const T *__restrict coverbuf, int coverwidth, int coverheight, ptrdiff_t coverpitch, VSFrame *dst, int mirw, int mirh, bool interlaced, const VSAPI *vsapi) {
     T *__restrict dstp = reinterpret_cast<T *>(vsapi->getWritePtr(dst, 0));
     int      dst_height = vsapi->getFrameHeight(dst, 0);
     int      dst_width = vsapi->getFrameWidth(dst, 0);
@@ -691,7 +691,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
     }
 }
 
-FFT3DFilterTransform::FFT3DFilterTransform(bool pshow, VSNodeRef *node_, int plane_, int wintype, int bw_, int bh_, int ow_, int oh_, int px_, int py_, float pcutoff_, float degrid_, bool interlaced_, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi) : plane(plane_), node(node_), bw(bw_), bh(bh_), ow(ow_), oh(oh_), px(px_), py(py_), pcutoff(pcutoff_), degrid(degrid_), interlaced(interlaced_), in(nullptr, nullptr), plan(nullptr, nullptr) {
+FFT3DFilterTransform::FFT3DFilterTransform(bool pshow, VSNode *node_, int plane_, int wintype, int bw_, int bh_, int ow_, int oh_, int px_, int py_, float pcutoff_, float degrid_, bool interlaced_, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi) : plane(plane_), node(node_), bw(bw_), bh(bh_), ow(ow_), oh(oh_), px(px_), py(py_), pcutoff(pcutoff_), degrid(degrid_), interlaced(interlaced_), in(nullptr, nullptr), plan(nullptr, nullptr) {
     if (ow < 0)
         ow = bw / 3;
     if (oh < 0)
@@ -741,7 +741,7 @@ FFT3DFilterTransform::FFT3DFilterTransform(bool pshow, VSNodeRef *node_, int pla
     dstvi.width = outsize * 2; // 2 floats per complex number
     dstvi.height = 1;
 
-    VSFrameRef *out = vsapi->newVideoFrame(&dstvi.format, dstvi.width, dstvi.height, nullptr, core);
+    VSFrame *out = vsapi->newVideoFrame(&dstvi.format, dstvi.width, dstvi.height, nullptr, core);
 
     fftwf_plan_with_nthreads(ncpu);
 
@@ -759,7 +759,7 @@ FFT3DFilterTransform::FFT3DFilterTransform(bool pshow, VSNodeRef *node_, int pla
         outvi = dstvi;
 }
 
-VSFrameRef *FFT3DFilterTransform::GetFrame(const VSFrameRef *src, VSCore *core, const VSAPI *vsapi) {
+VSFrame *FFT3DFilterTransform::GetFrame(const VSFrame *src, VSCore *core, const VSAPI *vsapi) {
     const VSVideoFormat *fi = vsapi->getVideoFrameFormat(src);
 
     if (fi->bytesPerSample == 1) {
@@ -773,18 +773,18 @@ VSFrameRef *FFT3DFilterTransform::GetFrame(const VSFrameRef *src, VSCore *core, 
         InitOverlapPlane<float>(in.get(), reinterpret_cast<float *>(coverbuf.get()), coverpitch, wanxl.get(), wanxr.get(), wanyl.get(), wanyr.get(), bw, bh, ow, oh, nox, noy, coverwidth, planeBase);
     }
 
-    VSFrameRef *dst = vsapi->newVideoFrame(&dstvi.format, dstvi.width, dstvi.height, src, core);
+    VSFrame *dst = vsapi->newVideoFrame(&dstvi.format, dstvi.width, dstvi.height, src, core);
     fftwf_execute_dft_r2c(plan.get(), in.get(), reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)));
     return dst;
 }
 
-const VSFrameRef *VS_CC FFT3DFilterTransform::GetFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
+const VSFrame *VS_CC FFT3DFilterTransform::GetFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
     FFT3DFilterTransform *data = reinterpret_cast<FFT3DFilterTransform *>(instance_data);
     if (activation_reason == arInitial) {
         vsapi->requestFrameFilter(n, data->node, frame_ctx);
     } else if (activation_reason == arAllFramesReady) {
-        const VSFrameRef *src = vsapi->getFrameFilter(n, data->node, frame_ctx);
-        VSFrameRef *dst = data->GetFrame(src, core, vsapi);
+        const VSFrame *src = vsapi->getFrameFilter(n, data->node, frame_ctx);
+        VSFrame *dst = data->GetFrame(src, core, vsapi);
         vsapi->freeFrame(src);
         return dst;
     }
@@ -792,13 +792,13 @@ const VSFrameRef *VS_CC FFT3DFilterTransform::GetFrame(int n, int activation_rea
     return nullptr;
 }
 
-const VSFrameRef *VS_CC FFT3DFilterTransform::GetPShowFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
+const VSFrame *VS_CC FFT3DFilterTransform::GetPShowFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
     FFT3DFilterTransform *data = reinterpret_cast<FFT3DFilterTransform *>(instance_data);
     if (activation_reason == arInitial) {
         vsapi->requestFrameFilter(n, data->node, frame_ctx);
     } else if (activation_reason == arAllFramesReady) {
-        const VSFrameRef *src = vsapi->getFrameFilter(n, data->node, frame_ctx);
-        VSFrameRef *dst = data->GetPShowInfo(src, core, vsapi);
+        const VSFrame *src = vsapi->getFrameFilter(n, data->node, frame_ctx);
+        VSFrame *dst = data->GetPShowInfo(src, core, vsapi);
         vsapi->freeFrame(src);
         return dst;
     }
@@ -806,7 +806,7 @@ const VSFrameRef *VS_CC FFT3DFilterTransform::GetPShowFrame(int n, int activatio
     return nullptr;
 }
 
-const VSFrameRef *FFT3DFilterTransform::GetGridSample(VSCore *core, const VSAPI *vsapi) {
+const VSFrame *FFT3DFilterTransform::GetGridSample(VSCore *core, const VSAPI *vsapi) {
     const VSVideoInfo *vi = vsapi->getVideoInfo(node);
     int bytesPerSample = vi->format.bytesPerSample;
 
@@ -822,7 +822,7 @@ const VSFrameRef *FFT3DFilterTransform::GetGridSample(VSCore *core, const VSAPI 
         InitOverlapPlane(in.get(), reinterpret_cast<float *>(coverbuf.get()), coverpitch, wanxl.get(), wanxr.get(), wanyl.get(), wanyr.get(), bw, bh, ow, oh, nox, noy, coverwidth, 0);
     }
 
-    VSFrameRef *dst = vsapi->newVideoFrame(&dstvi.format, dstvi.width, dstvi.height, nullptr, core);
+    VSFrame *dst = vsapi->newVideoFrame(&dstvi.format, dstvi.width, dstvi.height, nullptr, core);
     fftwf_execute_dft_r2c(plan.get(), in.get(), reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)));
     return dst;
 }
@@ -895,8 +895,8 @@ static void SetPattern(const fftwf_complex *outcur, int outwidth, int outpitchel
 }
 
 void FFT3DFilterTransform::GetNoisePattern(int n, int &px, int &py, float *pattern2d, float &psigma, const fftwf_complex *gridsample, VSCore *core, const VSAPI *vsapi) {
-    const VSFrameRef *src = vsapi->getFrame(n, node, nullptr, 0);
-    VSFrameRef *dst = GetFrame(src, core, vsapi);
+    const VSFrame *src = vsapi->getFrame(n, node, nullptr, 0);
+    VSFrame *dst = GetFrame(src, core, vsapi);
     vsapi->freeFrame(src);
 
     std::unique_ptr<float[]> pwin = std::unique_ptr<float[]>(new float[bh * outpitchelems]); /* pattern window array */
@@ -907,13 +907,13 @@ void FFT3DFilterTransform::GetNoisePattern(int n, int &px, int &py, float *patte
     SetPattern(reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(dst, 0)), outwidth, outpitchelems, bh, nox, noy, px, py, pwin.get(), pattern2d, psigma, degrid, gridsample);
 }
 
-VSFrameRef *FFT3DFilterTransform::GetPShowInfo(const VSFrameRef *src, VSCore *core, const VSAPI *vsapi) {
+VSFrame *FFT3DFilterTransform::GetPShowInfo(const VSFrame *src, VSCore *core, const VSAPI *vsapi) {
     // accept a lot of extra recalculation and allocation when visualizing
     // should be fast enough since it's all spatial anyway
     // requires px, py, pcutoff, degrid
 
-    VSFrameRef *transformed = GetFrame(src, core, vsapi);
-    const VSFrameRef *gridsample = GetGridSample(core, vsapi);
+    VSFrame *transformed = GetFrame(src, core, vsapi);
+    const VSFrame *gridsample = GetGridSample(core, vsapi);
 
     std::unique_ptr<float[]> pwin = std::unique_ptr<float[]>(new float[bh * outpitchelems]); /* pattern window array */
     GetPatternWindow(bw, bh, outwidth, outpitchelems, pcutoff, pwin.get());
@@ -933,13 +933,13 @@ VSFrameRef *FFT3DFilterTransform::GetPShowInfo(const VSFrameRef *src, VSCore *co
     vsapi->freeFrame(transformed);
     vsapi->freeFrame(gridsample);
 
-    VSFrameRef *dst = vsapi->copyFrame(src, core);
+    VSFrame *dst = vsapi->copyFrame(src, core);
 
     VSMap *props = vsapi->getFramePropertiesRW(dst);
 
-    vsapi->mapSetInt(props, "px", pxf, paReplace);
-    vsapi->mapSetInt(props, "py", pyf, paReplace);
-    vsapi->mapSetFloat(props, "sigma", psigma, paReplace);
+    vsapi->mapSetInt(props, "px", pxf, maReplace);
+    vsapi->mapSetInt(props, "py", pyf, maReplace);
+    vsapi->mapSetFloat(props, "sigma", psigma, maReplace);
 
     return dst;
 }
@@ -952,7 +952,7 @@ void VS_CC FFT3DFilterTransform::Free(void *instance_data, VSCore *core, const V
 
 //-----------------------------------------------------------------------------------------
 
-FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNodeRef *node_, const VSVideoInfo *srcvi, int plane, int wintype, int bw_, int bh_, int ow_, int oh_, bool interlaced_, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi) : node(node_), bw(bw_), bh(bh_), ow(ow_), oh(oh_), interlaced(interlaced_), in(nullptr, nullptr), planinv(nullptr, nullptr) {
+FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNode *node_, const VSVideoInfo *srcvi, int plane, int wintype, int bw_, int bh_, int ow_, int oh_, bool interlaced_, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi) : node(node_), bw(bw_), bh(bh_), ow(ow_), oh(oh_), interlaced(interlaced_), in(nullptr, nullptr), planinv(nullptr, nullptr) {
     if (ow < 0)
         ow = bw / 3;
     if (oh < 0)
@@ -1002,7 +1002,7 @@ FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNodeRef *node_, const VSVideo
     vsapi->queryVideoFormat(&dstvi.format, cfGray, srcvi->format.sampleType, srcvi->format.bitsPerSample, 0, 0, core);
 
     const VSVideoInfo *inputvi = vsapi->getVideoInfo(node);
-    VSFrameRef *src = vsapi->newVideoFrame(&inputvi->format, inputvi->width, inputvi->height, nullptr, core);
+    VSFrame *src = vsapi->newVideoFrame(&inputvi->format, inputvi->width, inputvi->height, nullptr, core);
 
     fftwf_plan_with_nthreads(ncpu);
 
@@ -1014,14 +1014,14 @@ FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNodeRef *node_, const VSVideo
     vsapi->freeFrame(src);
 }
 
-VSFrameRef *FFT3DFilterInvTransform::GetFrame(const VSFrameRef *src, VSCore *core, const VSAPI *vsapi) {
-    VSFrameRef *modifiableSrc = vsapi->copyFrame(src, core);
+VSFrame *FFT3DFilterInvTransform::GetFrame(const VSFrame *src, VSCore *core, const VSAPI *vsapi) {
+    VSFrame *modifiableSrc = vsapi->copyFrame(src, core);
 
     fftwf_execute_dft_c2r(planinv.get(), reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(modifiableSrc, 0)), in.get());
 
     vsapi->freeFrame(modifiableSrc);
 
-    VSFrameRef *dst = vsapi->newVideoFrame(&dstvi.format, dstvi.width, dstvi.height, src, core);
+    VSFrame *dst = vsapi->newVideoFrame(&dstvi.format, dstvi.width, dstvi.height, src, core);
 
     if (dstvi.format.bytesPerSample == 1) {
         DecodeOverlapPlane(in.get(), norm, reinterpret_cast<uint8_t *>(coverbuf.get()), coverpitch, wsynxl.get(), wsynxr.get(), wsynyr.get(), wsynyl.get(), bw, bh, ow, oh, nox, noy, coverwidth, planeBase, 255);
@@ -1037,13 +1037,13 @@ VSFrameRef *FFT3DFilterInvTransform::GetFrame(const VSFrameRef *src, VSCore *cor
     return dst;
 }
 
-const VSFrameRef *VS_CC FFT3DFilterInvTransform::GetFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
+const VSFrame *VS_CC FFT3DFilterInvTransform::GetFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
     FFT3DFilterInvTransform *data = reinterpret_cast<FFT3DFilterInvTransform *>(instance_data);
     if (activation_reason == arInitial) {
         vsapi->requestFrameFilter(n, data->node, frame_ctx);
     } else if (activation_reason == arAllFramesReady) {
-        const VSFrameRef *src = vsapi->getFrameFilter(n, data->node, frame_ctx);
-        VSFrameRef *dst = data->GetFrame(src, core, vsapi);
+        const VSFrame *src = vsapi->getFrameFilter(n, data->node, frame_ctx);
+        VSFrame *dst = data->GetFrame(src, core, vsapi);
         vsapi->freeFrame(src);
         return dst;
     }
@@ -1057,7 +1057,7 @@ void VS_CC FFT3DFilterInvTransform::Free(void *instance_data, VSCore *core, cons
     delete data;
 }
 
-FFT3DFilterPShow::FFT3DFilterPShow(VSNodeRef *node_, int plane_, int bw_, int bh_, int ow_, int oh_, bool interlaced_, VSCore *core, const VSAPI *vsapi) : node(node_), plane(plane_), bw(bw_), bh(bh_), ow(ow_), oh(oh_) {
+FFT3DFilterPShow::FFT3DFilterPShow(VSNode *node_, int plane_, int bw_, int bh_, int ow_, int oh_, bool interlaced_, VSCore *core, const VSAPI *vsapi) : node(node_), plane(plane_), bw(bw_), bh(bh_), ow(ow_), oh(oh_) {
     vi = vsapi->getVideoInfo(node);
 }
 
@@ -1079,16 +1079,16 @@ static void PutPatternOnly2(const T *src, T *dst, T emptyval, ptrdiff_t stride, 
     }
 }
 
-VSFrameRef *FFT3DFilterPShow::GetFrame(const VSFrameRef *src, VSCore *core, const VSAPI *vsapi) {
+VSFrame *FFT3DFilterPShow::GetFrame(const VSFrame *src, VSCore *core, const VSAPI *vsapi) {
     const VSMap *props = vsapi->getFramePropertiesRO(src);
 
     int pxf = vsapi->mapGetIntSaturated(props, "px", 0, nullptr);
     int pyf = vsapi->mapGetIntSaturated(props, "py", 0, nullptr);
 
-    const VSFrameRef *srcs[3] = { plane == 0 ? nullptr : src, plane == 1 ? nullptr : src, plane == 2 ? nullptr : src };
+    const VSFrame *srcs[3] = { plane == 0 ? nullptr : src, plane == 1 ? nullptr : src, plane == 2 ? nullptr : src };
     const int planesrc[3] = { 0, 1, 2 };
 
-    VSFrameRef *dst = vsapi->newVideoFrame2(&vi->format, vi->width, vi->height, srcs, planesrc, src, core);
+    VSFrame *dst = vsapi->newVideoFrame2(&vi->format, vi->width, vi->height, srcs, planesrc, src, core);
 
     int planeBase = (plane > 0 && vi->format.sampleType == stInteger && vi->format.colorFamily == cfYUV) ? (1 << (vi->format.bitsPerSample - 1)) : 0;
 
@@ -1102,13 +1102,13 @@ VSFrameRef *FFT3DFilterPShow::GetFrame(const VSFrameRef *src, VSCore *core, cons
     return dst;
 }
 
-const VSFrameRef *VS_CC FFT3DFilterPShow::GetFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
+const VSFrame *VS_CC FFT3DFilterPShow::GetFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
     FFT3DFilterPShow *data = reinterpret_cast<FFT3DFilterPShow *>(instance_data);
     if (activation_reason == arInitial) {
         vsapi->requestFrameFilter(n, data->node, frame_ctx);
     } else if (activation_reason == arAllFramesReady) {
-        const VSFrameRef *src = vsapi->getFrameFilter(n, data->node, frame_ctx);
-        VSFrameRef *dst = data->GetFrame(src, core, vsapi);
+        const VSFrame *src = vsapi->getFrameFilter(n, data->node, frame_ctx);
+        VSFrame *dst = data->GetFrame(src, core, vsapi);
         vsapi->freeFrame(src);
         return dst;
     }

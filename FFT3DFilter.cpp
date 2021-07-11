@@ -177,7 +177,7 @@ static void Pattern2Dto3D(const float *pattern2d, int bh, int outwidth, int outp
     }
 }
 
-const VSFrameRef *VS_CC FFT3DFilter::GetFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
+const VSFrame *VS_CC FFT3DFilter::GetFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
     FFT3DFilter *data = reinterpret_cast<FFT3DFilter *>(instance_data);
     if (activation_reason == arInitial) {
         int btcur = data->bt; /* bt used for current frame */
@@ -214,7 +214,7 @@ FFT3DFilter::FFT3DFilter
     int _pframe, int _px, int _py, bool pshow, float _pcutoff, float _pfactor,
     float _sigma2, float _sigma3, float _sigma4, float _degrid,
     float _dehalo, float _hr, float _ht, int _ncpu,
-    VSNodeRef *_node, VSCore *core, const VSAPI *vsapi
+    VSNode *_node, VSCore *core, const VSAPI *vsapi
 ) : sigma(_sigma), beta(_beta), plane(_plane), bw(_bw), bh(_bh), bt(_bt), ow(_ow), oh(_oh),
 kratio(_kratio), sharpen(_sharpen), scutoff(_scutoff), svr(_svr), smin(_smin), smax(_smax),
 pframe(_pframe), px(_px), py(_py), pfactor(_pfactor),
@@ -298,15 +298,15 @@ template < int btcur >
 void FFT3DFilter::Wiener3D
 (
     int               n,
-    VSNodeRef *node,
-    VSFrameRef *dst,
+    VSNode *node,
+    VSFrame *dst,
     VSFrameContext *frame_ctx,
     const VSAPI *vsapi
 ) {
     int fromframe = n - btcur / 2;
     int outcenter = btcur / 2;
     const fftwf_complex *frames[btcur] = {};
-    const VSFrameRef *frefs[btcur] = {};
+    const VSFrame *frefs[btcur] = {};
 
     for (int i = 0; i < btcur; i++) {
         frefs[i] = vsapi->getFrameFilter(fromframe + i, node, frame_ctx);
@@ -335,14 +335,14 @@ void FFT3DFilter::Wiener3D
         vsapi->freeFrame(frefs[i]);
 }
 
-const VSFrameRef *FFT3DFilter::ApplyFilter
+const VSFrame *FFT3DFilter::ApplyFilter
 (
     int               n,
     VSFrameContext *frame_ctx,
     VSCore *core,
     const VSAPI *vsapi
 ) {
-    const VSFrameRef *src = vsapi->getFrameFilter(n, node, frame_ctx);
+    const VSFrame *src = vsapi->getFrameFilter(n, node, frame_ctx);
 
     int btcur = bt; /* bt used for current frame */
 
@@ -353,7 +353,7 @@ const VSFrameRef *FFT3DFilter::ApplyFilter
     if (btcur == 0 && n == 0)
         return src;
 
-    VSFrameRef *dst = (btcur == 0) ? vsapi->newVideoFrame(vsapi->getVideoFrameFormat(src), vsapi->getFrameWidth(src, 0), vsapi->getFrameHeight(src, 0), src, core) : vsapi->copyFrame(src, core);
+    VSFrame *dst = (btcur == 0) ? vsapi->newVideoFrame(vsapi->getVideoFrameFormat(src), vsapi->getFrameWidth(src, 0), vsapi->getFrameHeight(src, 0), src, core) : vsapi->copyFrame(src, core);
 
     if (btcur > 0) /* Wiener */
     {
