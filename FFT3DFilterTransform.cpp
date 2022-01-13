@@ -691,7 +691,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
     }
 }
 
-FFT3DFilterTransform::FFT3DFilterTransform(bool pshow, VSNode *node_, int plane_, int wintype, int bw_, int bh_, int ow_, int oh_, int px_, int py_, float pcutoff_, float degrid_, bool interlaced_, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi) : plane(plane_), node(node_), bw(bw_), bh(bh_), ow(ow_), oh(oh_), px(px_), py(py_), pcutoff(pcutoff_), degrid(degrid_), interlaced(interlaced_), in(nullptr, nullptr), plan(nullptr, nullptr) {
+FFT3DFilterTransform::FFT3DFilterTransform(bool pshow, VSNode *node_, int plane_, int wintype, int bw_, int bh_, int ow_, int oh_, int px_, int py_, float pcutoff_, float degrid_, bool interlaced_, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi) : plane(plane_), bw(bw_), bh(bh_), ow(ow_), oh(oh_), px(px_), py(py_), pcutoff(pcutoff_), degrid(degrid_), interlaced(interlaced_), node(node_), in(nullptr, nullptr), plan(nullptr, nullptr) {
     if (ow < 0)
         ow = bw / 3;
     if (oh < 0)
@@ -952,7 +952,7 @@ void VS_CC FFT3DFilterTransform::Free(void *instance_data, VSCore *core, const V
 
 //-----------------------------------------------------------------------------------------
 
-FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNode *node_, const VSVideoInfo *srcvi, int plane, int wintype, int bw_, int bh_, int ow_, int oh_, bool interlaced_, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi) : node(node_), bw(bw_), bh(bh_), ow(ow_), oh(oh_), interlaced(interlaced_), in(nullptr, nullptr), planinv(nullptr, nullptr) {
+FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNode *node_, const VSVideoInfo *srcvi, int plane, int wintype, int bw_, int bh_, int ow_, int oh_, bool interlaced_, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi) : bw(bw_), bh(bh_), ow(ow_), oh(oh_), interlaced(interlaced_), node(node_), in(nullptr, nullptr), planinv(nullptr, nullptr) {
     if (ow < 0)
         ow = bw / 3;
     if (oh < 0)
@@ -1057,7 +1057,7 @@ void VS_CC FFT3DFilterInvTransform::Free(void *instance_data, VSCore *core, cons
     delete data;
 }
 
-FFT3DFilterPShow::FFT3DFilterPShow(VSNode *node_, int plane_, int bw_, int bh_, int ow_, int oh_, bool interlaced_, VSCore *core, const VSAPI *vsapi) : node(node_), plane(plane_), bw(bw_), bh(bh_), ow(ow_), oh(oh_) {
+FFT3DFilterPShow::FFT3DFilterPShow(VSNode *node_, int plane_, int bw_, int bh_, int ow_, int oh_, bool interlaced_, VSCore *core, const VSAPI *vsapi) : plane(plane_), bw(bw_), bh(bh_), ow(ow_), oh(oh_), node(node_) {
     vi = vsapi->getVideoInfo(node);
 }
 
