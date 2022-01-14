@@ -236,7 +236,7 @@ static void VS_CC createFFT3DFilter
                         transform->GetOutputVI(),
                         FFT3DFilterTransform::GetFrame,
                         FFT3DFilterTransform::Free,
-                        fmParallelRequests, deps1, 1, transform, core
+                        fmParallel, deps1, 1, transform, core
                     );
 
                     FFT3DFilter *mainFilter = new FFT3DFilter(transform, vi, sigma1, beta, plane, bw, bh, bt, ow, oh,
@@ -267,7 +267,7 @@ static void VS_CC createFFT3DFilter
                         invtransform->GetOutputVI(),
                         FFT3DFilterInvTransform::GetFrame,
                         FFT3DFilterInvTransform::Free,
-                        fmParallelRequests, deps3, 1, invtransform, core
+                        fmParallel, deps3, 1, invtransform, core
                     );
 
                     if (vi->format.numPlanes > 1) {

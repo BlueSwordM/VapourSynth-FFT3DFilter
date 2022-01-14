@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <stdexcept>
 
 template<typename T>
 static void fft3d_memset(T *dst, T val, size_t count) {
@@ -691,7 +692,10 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
     }
 }
 
-FFT3DFilterTransform::FFT3DFilterTransform(bool pshow, VSNode *node_, int plane_, int wintype, int bw_, int bh_, int ow_, int oh_, int px_, int py_, float pcutoff_, float degrid_, bool interlaced_, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi) : plane(plane_), bw(bw_), bh(bh_), ow(ow_), oh(oh_), px(px_), py(py_), pcutoff(pcutoff_), degrid(degrid_), interlaced(interlaced_), node(node_), in(nullptr, nullptr), plan(nullptr, nullptr) {
+FFT3DFilterTransform::FFT3DFilterTransform(bool pshow, VSNode *node_, int plane_, int wintype, int bw_, int bh_, int ow_, int oh_, int px_, int py_, float pcutoff_, float degrid_, bool interlaced_, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi) : plane(plane_), bw(bw_), bh(bh_), ow(ow_), oh(oh_), px(px_), py(py_), pcutoff(pcutoff_), degrid(degrid_), interlaced(interlaced_), node(node_), plan(nullptr, nullptr) {
+    VSCoreInfo coreInfo;
+    vsapi->getCoreInfo(core, &coreInfo);
+
     if (ow < 0)
         ow = bw / 3;
     if (oh < 0)
@@ -720,10 +724,10 @@ FFT3DFilterTransform::FFT3DFilterTransform(bool pshow, VSNode *node_, int plane_
     coverwidth = nox * (bw - ow) + ow;
     coverheight = noy * (bh - oh) + oh;
     coverpitch = ((coverwidth + 7) / 8) * 8 * srcvi->format.bytesPerSample;
-    coverbuf = std::unique_ptr<uint8_t[]>(new uint8_t[coverheight * coverpitch]);
+    coverbuf.init(coverheight * coverpitch, coreInfo.numThreads);
 
     int insize = bw * bh * nox * noy;
-    in = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(insize), fftwf_free);
+    in.init(insize, coreInfo.numThreads);
     outwidth = bw / 2 + 1;                  /* width (pitch) of complex fft block */
     outpitchelems = ((outwidth + 1) / 2) * 2;
     int outsize = outpitchelems * bh * nox * noy;   /* replace outwidth to outpitchelems here and below in v1.7 */
@@ -743,12 +747,8 @@ FFT3DFilterTransform::FFT3DFilterTransform(bool pshow, VSNode *node_, int plane_
 
     VSFrame *out = vsapi->newVideoFrame(&dstvi.format, dstvi.width, dstvi.height, nullptr, core);
 
-    fftwf_plan_with_nthreads(ncpu);
-
     plan = std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)>(fftwf_plan_many_dft_r2c(2, ndim, howmanyblocks,
         in.get(), inembed, 1, idist, reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(out, 0)), onembed, 1, odist, planFlags), fftwf_destroy_plan);
-
-    fftwf_plan_with_nthreads(1);
 
     vsapi->freeFrame(out);
 
@@ -952,7 +952,10 @@ void VS_CC FFT3DFilterTransform::Free(void *instance_data, VSCore *core, const V
 
 //-----------------------------------------------------------------------------------------
 
-FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNode *node_, const VSVideoInfo *srcvi, int plane, int wintype, int bw_, int bh_, int ow_, int oh_, bool interlaced_, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi) : bw(bw_), bh(bh_), ow(ow_), oh(oh_), interlaced(interlaced_), node(node_), in(nullptr, nullptr), planinv(nullptr, nullptr) {
+FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNode *node_, const VSVideoInfo *srcvi, int plane, int wintype, int bw_, int bh_, int ow_, int oh_, bool interlaced_, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi) : bw(bw_), bh(bh_), ow(ow_), oh(oh_), interlaced(interlaced_), node(node_), planinv(nullptr, nullptr) {
+    VSCoreInfo coreInfo;
+    vsapi->getCoreInfo(core, &coreInfo);
+
     if (ow < 0)
         ow = bw / 3;
     if (oh < 0)
@@ -979,10 +982,10 @@ FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNode *node_, const VSVideoInf
     coverwidth = nox * (bw - ow) + ow;
     coverheight = noy * (bh - oh) + oh;
     coverpitch = ((coverwidth + 7) / 8) * 8 * srcvi->format.bytesPerSample;
-    coverbuf = std::unique_ptr<uint8_t[]>(new uint8_t[coverheight * coverpitch]);
+    coverbuf.init(coverheight * coverpitch, coreInfo.numThreads);
 
     int insize = bw * bh * nox * noy;
-    in = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(insize), fftwf_free);
+    in.init(insize, coreInfo.numThreads);
     outwidth = bw / 2 + 1;                  /* width (pitch) of complex fft block */
     outpitchelems = ((outwidth + 1) / 2) * 2;
     norm = 1.0f / (bw * bh); /* do not forget set FFT normalization factor */
@@ -1004,12 +1007,8 @@ FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNode *node_, const VSVideoInf
     const VSVideoInfo *inputvi = vsapi->getVideoInfo(node);
     VSFrame *src = vsapi->newVideoFrame(&inputvi->format, inputvi->width, inputvi->height, nullptr, core);
 
-    fftwf_plan_with_nthreads(ncpu);
-
     planinv = std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)>(fftwf_plan_many_dft_c2r(2, ndim, howmanyblocks,
         reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(src, 0)), onembed, 1, odist, in.get(), inembed, 1, idist, planFlags), fftwf_destroy_plan);
-
-    fftwf_plan_with_nthreads(1);
 
     vsapi->freeFrame(src);
 }
@@ -1120,4 +1119,26 @@ void VS_CC FFT3DFilterPShow::Free(void *instance_data, VSCore *core, const VSAPI
     FFT3DFilterPShow *data = reinterpret_cast<FFT3DFilterPShow *>(instance_data);
     vsapi->freeNode(data->node);
     delete data;
+}
+
+template <class T, auto Allocator, auto Deleter>
+void ThreadLocalPtrPool<T, Allocator, Deleter>::init(size_t size, int num_threads) noexcept {
+    this->size = size;
+    pool.reserve(num_threads);
+}
+
+template <class T, auto Allocator, auto Deleter>
+T* ThreadLocalPtrPool<T, Allocator, Deleter>::get() noexcept {
+    const auto thread_id = std::this_thread::get_id();
+
+    T * ret;
+
+    try {
+        ret = pool.at(thread_id);
+    } catch (const std::out_of_range &e) {
+        ret = reinterpret_cast<T *>(Allocator(size));
+        pool.emplace(thread_id, ret);
+    }
+
+    return ret;
 }

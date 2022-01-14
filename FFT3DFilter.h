@@ -20,7 +20,10 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *****************************************************************************/
 
+#include <cstdlib>
 #include <memory>
+#include <thread>
+#include <unordered_map>
 #include <fftw3.h>
 #include <VapourSynth4.h>
 
@@ -52,6 +55,26 @@ void ApplyPattern3D3_degrid_C(fftwf_complex *__restrict out, const fftwf_complex
 void ApplyPattern3D4_degrid_C(fftwf_complex *__restrict out, const fftwf_complex *outprev2, const fftwf_complex *outprev, const fftwf_complex *outnext, int outwidth, int outpitchelems, int bh, int howmanyblocks, const float *pattern3d, float beta, float degrid, const fftwf_complex *gridsample);
 void ApplyPattern3D5_degrid_C(fftwf_complex *__restrict out, const fftwf_complex *outprev2, const fftwf_complex *outprev, const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh, int howmanyblocks, const float *pattern3d, float beta, float degrid, const fftwf_complex *gridsample);
 
+template <class T, auto Allocator=malloc, auto Deleter=free>
+class ThreadLocalPtrPool {
+private:
+    std::unordered_map<std::thread::id, T *> pool;
+    size_t size;
+
+public:
+    ThreadLocalPtrPool() = default;
+
+    void init(size_t size, int num_threads) noexcept;
+
+    T* get() noexcept;
+
+    ~ThreadLocalPtrPool() noexcept {
+        for (const auto [_, ptr] : pool) {
+            Deleter(ptr);
+        }
+    }
+};
+
 class FFT3DFilterTransform {
 private:
     /* parameters */
@@ -67,7 +90,7 @@ private:
     bool interlaced;
     VSNode *node;
 
-    std::unique_ptr<uint8_t[]> coverbuf; /*  block buffer covering the frame without remainders (with sufficient width and heigth) */
+    ThreadLocalPtrPool<uint8_t> coverbuf; /*  block buffer covering the frame without remainders (with sufficient width and heigth) */
     int coverwidth;
     int coverheight;
     ptrdiff_t coverpitch;
@@ -89,7 +112,7 @@ private:
     std::unique_ptr<float[]> wanyl;
     std::unique_ptr<float[]> wanyr;
 
-    std::unique_ptr<float[], decltype(&fftw_free)> in;
+    ThreadLocalPtrPool<float, fftwf_alloc_real, fftwf_free> in;
     std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)> plan;
 public:
     const VSVideoInfo *GetOutputVI() const { return &outvi; };
@@ -115,7 +138,7 @@ private:
     bool interlaced;
     VSNode *node;
 
-    std::unique_ptr<uint8_t[]> coverbuf; /*  block buffer covering the frame without remainders (with sufficient width and heigth) */
+    ThreadLocalPtrPool<uint8_t> coverbuf; /*  block buffer covering the frame without remainders (with sufficient width and heigth) */
     int coverwidth;
     int coverheight;
     ptrdiff_t coverpitch;
@@ -138,7 +161,7 @@ private:
     std::unique_ptr<float[]> wsynyl;
     std::unique_ptr<float[]> wsynyr;
 
-    std::unique_ptr<float[], decltype(&fftw_free)> in;
+    ThreadLocalPtrPool<float, fftwf_alloc_real, fftwf_free> in;
     std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)> planinv;
 
     VSFrame *GetFrame(const VSFrame *src, VSCore *core, const VSAPI *vsapi);
