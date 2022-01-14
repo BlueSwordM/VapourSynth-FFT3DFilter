@@ -69,7 +69,7 @@ public:
     T* get() noexcept;
 
     ~ThreadLocalPtrPool() noexcept {
-        for (const auto [_, ptr] : pool) {
+        for (const auto &[_, ptr] : pool) {
             Deleter(ptr);
         }
     }
