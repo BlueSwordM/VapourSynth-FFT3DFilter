@@ -55,15 +55,23 @@ jobs:
       uses: ilammy/msvc-dev-cmd@v1
       with:
         arch: ${{ matrix.arch }}
+
     - name: Install pkg-config lite
       run: choco install pkgconfiglite
+
     - name: Meson setup
       run: meson setup builddir/ -Db_vscrt=mt -Dpkg_config_path=${{ github.workspace }}/vcpkg/installed/x64-windows-static/lib/pkgconfig
+      env:
+        CXX: clang-cl
+        CXXFLAGS: "-mavx -mfma -Xclang -ffast-math"
+
     - name: Meson compile
       run: meson compile -C builddir/ -v
+
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
         name: release-${{matrix.arch}}
         path: |
           builddir/*.dll
+
