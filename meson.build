@@ -15,7 +15,7 @@ sources = [
   'Plugin.cpp'
 ]
 
-if cc.get_argument_syntax() == 'msvc'
+if build_machine.system() == 'windows'
   fftw3f_dep = dependency('fftwf')
   deps = [fftw3f_dep]
   install_dir = 'installed'  # dummy
