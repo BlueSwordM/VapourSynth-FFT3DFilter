@@ -25,7 +25,7 @@ else
   deps = [vapoursynth_dep, fftw3f_dep]
   install_dir = join_paths(vapoursynth_dep.get_pkgconfig_variable('libdir'), 'vapoursynth')
   if host_machine.cpu_family().startswith('x86')
-    add_project_arguments('-march=native', language : 'cpp')
+    add_project_arguments('-mfpmath=sse', '-march=native', language : 'cpp')
   endif
 endif
 
